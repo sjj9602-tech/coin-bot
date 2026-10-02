@@ -1,4 +1,4 @@
-# Render Blueprint — 코인 상시 봇(백그라운드 워커 1개 + 디스크 1GB). 비밀 값(sync: false)은 Render 화면에서 직접 입력한다(저장소에 넣지 않는다).
+# Render Blueprint — 코인 상시 봇(백그라운드 워커 1개 + 디스크 1GB). 현물·선물 모두 OKX 한 곳. 비밀 값(sync: false)은 Render 화면에서 직접 입력한다(저장소에 넣지 않는다).
 services:
   - type: worker
     name: coin-bot
@@ -17,12 +17,14 @@ services:
       - key: DATA_DIR
         value: /data
       # ── 모드: 전부 모의로 시작한다. 바꾸는 것은 사용자 몫 ──
-      - key: MODE_SPOT            # off | paper | live
+      - key: SPOT_EXCHANGE        # okx(기본, 선물과 같은 거래소) | upbit(선택)
+        value: okx
+      - key: MODE_SPOT            # off | paper | demo | live
         value: paper
       - key: MODE_FUT             # off | paper | demo | live
         value: paper
-      - key: BUDGET_KRW           # 현물 예산(원): 이 봇이 굴려도 되는 최대 금액(계좌 전체가 아님)
-        value: "100000"
+      - key: BUDGET_SPOT_USDT     # 현물 예산(USDT): 이 봇이 굴려도 되는 최대 금액(계좌 전체가 아님)
+        value: "100"
       - key: BUDGET_USDT          # 선물 증거금 예산(USDT)
         value: "100"
       - key: LEVERAGE             # 1~2 만 허용
@@ -46,18 +48,15 @@ services:
         sync: false
       - key: TELEGRAM_CHAT_ID
         sync: false
-      - key: UPBIT_ACCESS_KEY
-        sync: false
-      - key: UPBIT_SECRET_KEY
-        sync: false
-      - key: OKX_API_KEY
+      - key: OKX_API_KEY          # 현물·선물 공용(출금 권한 금지)
         sync: false
       - key: OKX_API_SECRET
         sync: false
       - key: OKX_API_PASSPHRASE
         sync: false
+      # (업비트를 현물로 쓸 때만) SPOT_EXCHANGE=upbit, BUDGET_KRW, UPBIT_ACCESS_KEY, UPBIT_SECRET_KEY 추가
       # ── 진짜 주문 잠금(필요할 때만 사용자가 YES 로) ──
-      - key: AUTOTRADE_LIVE
+      - key: AUTOTRADE_LIVE            # 현물 live 잠금
         value: "NO"
       - key: AUTOTRADE_LIVE_FUTURES
         value: "NO"

@@ -30,6 +30,23 @@ def 현재가():
     return float(공개("/api/v5/market/ticker", {"instId": INST})[0]["last"])
 
 
+def 종목가격(inst):
+    """임의 종목(예: BTC-USDT 현물)의 현재가."""
+    return float(공개("/api/v5/market/ticker", {"instId": inst})[0]["last"])
+
+
+def 현물정보(inst):
+    """현물 종목의 (최소 주문 수량, 수량 단위)."""
+    d = 공개("/api/v5/public/instruments", {"instType": "SPOT", "instId": inst})[0]
+    return float(d["minSz"]), float(d["lotSz"])
+
+
+def 일봉종가(inst, 개수=300):
+    rows = sorted(공개("/api/v5/market/candles", {"instId": inst, "bar": "1Dutc", "limit": str(개수)}), key=lambda r: int(r[0]))
+    오늘 = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    return [float(r[4]) for r in rows if datetime.fromtimestamp(int(r[0]) / 1000, tz=timezone.utc) < 오늘 and r[8] == "1"]
+
+
 def 마감일봉종가(개수=300):
     rows = sorted(공개("/api/v5/market/candles", {"instId": SPOT, "bar": "1Dutc", "limit": str(개수)}), key=lambda r: int(r[0]))
     오늘 = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -69,6 +86,38 @@ class 계정:
         if j.get("code") != "0":
             raise RuntimeError("OKX 오류 %s %s %s" % (j.get("code"), j.get("msg"), json.dumps(j.get("data"), ensure_ascii=False)[:200]))
         return j["data"]
+
+    # ── 현물(cash) ──
+    def _주문결과(self, d):
+        if not d or d[0].get("sCode") not in (None, "0", 0):
+            raise RuntimeError("OKX 주문 거절 %s %s" % (d[0].get("sCode") if d else "?", d[0].get("sMsg") if d else "?"))
+        return d[0]["ordId"]
+
+    def 현물시장가매수(self, inst, 금액):
+        """견적통화(USDT) 금액만큼 시장가 매수."""
+        return self._주문결과(self.요청("POST", "/api/v5/trade/order", 본문={"instId": inst, "tdMode": "cash", "side": "buy", "ordType": "market", "sz": "%.4f" % 금액, "tgtCcy": "quote_ccy"}))
+
+    def 현물시장가매도(self, inst, 수량):
+        """기초통화 수량만큼 시장가 매도."""
+        s = ("%.8f" % 수량).rstrip("0").rstrip(".")
+        return self._주문결과(self.요청("POST", "/api/v5/trade/order", 본문={"instId": inst, "tdMode": "cash", "side": "sell", "ordType": "market", "sz": s, "tgtCcy": "base_ccy"}))
+
+    def 체결확인(self, inst, ord_id, 시도=12):
+        """(체결수량, 평균가, 수수료(음수), 수수료통화). 끝날 때까지 최대 약 12초 기다린다."""
+        import time
+        for _ in range(시도):
+            o = self.요청("GET", "/api/v5/trade/order", {"instId": inst, "ordId": ord_id})[0]
+            if o.get("state") in ("filled", "canceled", "mmp_canceled"):
+                return float(o.get("accFillSz") or 0), float(o.get("avgPx") or 0), float(o.get("fee") or 0), o.get("feeCcy", "")
+            time.sleep(1)
+        raise RuntimeError("OKX 주문 %s 체결 확인 시간 초과 — OKX 앱에서 직접 확인" % ord_id)
+
+    def 가용(self, ccy):
+        d = self.요청("GET", "/api/v5/account/balance", {"ccy": ccy})
+        try:
+            return float(d[0]["details"][0]["availBal"])
+        except Exception:
+            return 0.0
 
     def 총자산(self):
         d = self.요청("GET", "/api/v5/account/balance", {"ccy": "USDT"})
