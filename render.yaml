@@ -1,0 +1,63 @@
+# Render Blueprint — 코인 상시 봇(백그라운드 워커 1개 + 디스크 1GB). 비밀 값(sync: false)은 Render 화면에서 직접 입력한다(저장소에 넣지 않는다).
+services:
+  - type: worker
+    name: coin-bot
+    runtime: python
+    region: singapore          # 한국과 가장 가까운 지역
+    plan: starter              # 디스크를 붙이려면 유료 인스턴스 필요(가격은 render.com/pricing 확인)
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    disk:
+      name: botdata
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: DATA_DIR
+        value: /data
+      # ── 모드: 전부 모의로 시작한다. 바꾸는 것은 사용자 몫 ──
+      - key: MODE_SPOT            # off | paper | live
+        value: paper
+      - key: MODE_FUT             # off | paper | demo | live
+        value: paper
+      - key: BUDGET_KRW           # 현물 예산(원): 이 봇이 굴려도 되는 최대 금액(계좌 전체가 아님)
+        value: "100000"
+      - key: BUDGET_USDT          # 선물 증거금 예산(USDT)
+        value: "100"
+      - key: LEVERAGE             # 1~2 만 허용
+        value: "1"
+      - key: STOP_PCT_SPOT        # 현물 손절폭 %(3~15)
+        value: "8"
+      - key: STOP_PCT_FUT         # 선물 손절폭 %(청산거리의 60% 이하로 자동 제한)
+        value: "6"
+      - key: TP_PCT_SPOT          # 현물 고정 익절 %(0=없음, 연구상 추세 수익을 깎음)
+        value: "0"
+      - key: BE_PCT_SPOT          # +N% 닿으면 손절을 본전으로(0=끔)
+        value: "8"
+      - key: BE_PCT_FUT
+        value: "6"
+      - key: MAX_LOSS_SPOT        # 예산 대비 손실 한도(넘으면 전량 청산 후 정지)
+        value: "0.25"
+      - key: MAX_LOSS_FUT
+        value: "0.15"
+      # ── 비밀 값: Render 화면에서 직접 입력 ──
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: UPBIT_ACCESS_KEY
+        sync: false
+      - key: UPBIT_SECRET_KEY
+        sync: false
+      - key: OKX_API_KEY
+        sync: false
+      - key: OKX_API_SECRET
+        sync: false
+      - key: OKX_API_PASSPHRASE
+        sync: false
+      # ── 진짜 주문 잠금(필요할 때만 사용자가 YES 로) ──
+      - key: AUTOTRADE_LIVE
+        value: "NO"
+      - key: AUTOTRADE_LIVE_FUTURES
+        value: "NO"
